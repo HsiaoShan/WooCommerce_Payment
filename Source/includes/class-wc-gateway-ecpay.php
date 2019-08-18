@@ -58,8 +58,18 @@ class WC_Gateway_Ecpay extends WC_Payment_Gateway
     {
        if(isset($_GET['pay_for_order']))
        {
-            unset($gateway_list['ecpay']);
-            unset($gateway_list['ecpay_dca']);
+            $url_arr = explode('/', $_SERVER['REQUEST_URI']);
+            $order_id = intval($url_arr[3]);
+            $order = new WC_Order( $order_id );
+            $nEcpay_Payment_Tag = get_post_meta($order->get_id(), 'ecpay_payment_tag', true);
+            if ($order->get_payment_method() === 'ecpay') {
+                if ($nEcpay_Payment_Tag === 1) {
+                    unset($gateway_list['ecpay']);
+                    unset($gateway_list['ecpay_dca']);
+                } else {
+                    unset($gateway_list['bacs']);
+                }
+            }
        }
        return $gateway_list;
     }
@@ -800,8 +810,18 @@ class WC_Gateway_Ecpay_DCA extends WC_Payment_Gateway
     {
        if(isset($_GET['pay_for_order']))
        {
-            unset($gateway_list['ecpay']);
-            unset($gateway_list['ecpay_dca']);
+            $url_arr = explode('/', $_SERVER['REQUEST_URI']);
+            $order_id = intval($url_arr[3]);
+            $order = new WC_Order( $order_id );
+            $nEcpay_Payment_Tag = get_post_meta($order->get_id(), 'ecpay_payment_tag', true);
+            if ($order->get_payment_method() === 'ecpay') {
+                if ($nEcpay_Payment_Tag === 1) {
+                    unset($gateway_list['ecpay']);
+                    unset($gateway_list['ecpay_dca']);
+                } else {
+                    unset($gateway_list['bacs']);
+                }
+            }
        }
        return $gateway_list;
     }
