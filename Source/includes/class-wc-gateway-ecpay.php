@@ -17,10 +17,10 @@ class WC_Gateway_Ecpay extends WC_Payment_Gateway
         $this->method_description   =  __('ECPay is the most popular payment gateway for online shopping in Taiwan', 'ecpay');
         $this->has_fields = true;
         $this->icon = apply_filters('woocommerce_ecpay_icon', plugins_url('images/icon.png', dirname( __FILE__ )));
-        
+
         # Load the form fields
         $this->init_form_fields();
-        
+
         # Load the administrator settings
         $this->init_settings();
 
@@ -35,13 +35,13 @@ class WC_Gateway_Ecpay extends WC_Payment_Gateway
         //$this->ecpay_apple_pay = 'yes' === $this->get_option( 'apple_pay', 'yes' );
         $this->ecpay_apple_pay_ca_path = 'yes' === $this->get_option( 'apple_pay_domain_set', 'no' );
         $this->ecpay_apple_pay_button  = $this->get_option( 'apple_pay_button', 'black' );
-        
+
         # Register a action to save administrator settings
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
 
         # Register a action to redirect to ECPay payment center
         add_action('woocommerce_receipt_' . $this->id, array($this, 'receipt_page'));
-        
+
         # Register a action to process the callback
         add_action('woocommerce_api_wc_gateway_' . $this->id, array($this, 'receive_response'));
 
@@ -114,10 +114,10 @@ class WC_Gateway_Ecpay extends WC_Payment_Gateway
         # Update order status
         $order = new WC_Order($order_id);
         $order->update_status('pending', __('Awaiting ECPay payment', 'ecpay'));
-        
+
         # Set the ECPay payment type to the order note
-        $order->add_order_note($this->ecpay_choose_payment, true);
-        
+        $order->add_order_note($this->get_payment_desc($this->ecpay_choose_payment), true);
+
         return array(
             'result' => 'success',
             'redirect' => $order->get_checkout_payment_url(true)
@@ -132,11 +132,11 @@ class WC_Gateway_Ecpay extends WC_Payment_Gateway
         # Clean the cart
         global $woocommerce;
         $woocommerce->cart->empty_cart();
-        
+
         //找出訂單資訊
         $order = new WC_Order($order_id);
         $notes = $order->get_customer_order_notes();
-        
+
         if ($notes[0]->comment_content == 'ApplePay') {
             $gateway_settings = get_option( 'woocommerce_ecpay_settings', '' );
 
@@ -187,7 +187,7 @@ class WC_Gateway_Ecpay extends WC_Payment_Gateway
 
                 // 接收額外回傳參數 提供電子發票使用 v1.1.0911
                 $aio->Send['NeedExtraPaidInfo'] = 'Y';
-                
+
                 # Set the product info
                 $aio->Send['TotalAmount'] = $order->get_total();
                 array_push(
@@ -200,9 +200,9 @@ class WC_Gateway_Ecpay extends WC_Payment_Gateway
                         'URL'       => '',
                     )
                 );
-                
+
                 $aio->Send['TradeDesc'] = 'ecpay_module_woocommerce';
-                
+
                 # Get the chosen payment and installment
                 $notes = $order->get_customer_order_notes();
                 $choose_payment = '';
@@ -213,13 +213,13 @@ class WC_Gateway_Ecpay extends WC_Payment_Gateway
                     $choose_installment = isset($chooseParam[1]) ? $chooseParam[1] : '';
                 }
                 $aio->Send['ChoosePayment'] = $choose_payment;
-                
+
                 # Set the extend information
                 switch ($aio->Send['ChoosePayment']) {
                     case 'Credit':
                         # Do not support UnionPay
                         $aio->SendExtend['UnionPay'] = false;
-                        
+
                         # Credit installment parameters
                         if (!empty($choose_installment)) {
                             $aio->SendExtend['CreditInstallment'] = $choose_installment;
@@ -242,7 +242,7 @@ class WC_Gateway_Ecpay extends WC_Payment_Gateway
                         $aio->SendExtend['PaymentInfoURL'] = $aio->Send['ReturnURL'];
                         break;
                     default:
-                        throw new Exception(__('Invalid payment method.', 'ecpay')); 
+                        throw new Exception(__('Invalid payment method.', 'ecpay'));
                         break;
                 }
                 $aio->CheckOut();
@@ -289,11 +289,11 @@ class WC_Gateway_Ecpay extends WC_Payment_Gateway
                 } else {
                     # Set the common comments
                     $comments = sprintf(
-                        __('Payment Method : %s<br />Trade Time : %s<br />', 'ecpay'), 
+                        __('Payment Method : %s<br />Trade Time : %s<br />', 'ecpay'),
                         $ecpay_feedback['PaymentType'],
                         $ecpay_feedback['TradeDate']
                     );
-                    
+
                     # Set the getting code comments
                     $return_code = $ecpay_feedback['RtnCode'];
                     $return_message = $ecpay_feedback['RtnMsg'];
@@ -302,23 +302,23 @@ class WC_Gateway_Ecpay extends WC_Payment_Gateway
                         $return_code,
                         $return_message
                     );
-                    
+
                     # Set the payment result comments
                     $payment_result_comments = sprintf(
-                        __($this->method_title . ' Payment Result : (%s)%s', 'ecpay'),
+                        __('ECPay Payment Result : (%s)%s', 'ecpay'),
                         $return_code,
                         $return_message
                     );
-                    
+
                     # Set the fail message
                     $fail_message = sprintf('Order %s Exception.(%s: %s)', $cart_order_id, $return_code, $return_message);
-                    
+
                     # Get ECPay payment method
                     $ecpay_payment_method = $this->get_payment_method($ecpay_feedback['PaymentType']);
 
                     # Set the order comments
 
-                    // 20170920 
+                    // 20170920
                     switch($ecpay_payment_method) {
                         case ECPay_PaymentMethod::Credit:
                             if ($return_code != 1 and $return_code != 800)
@@ -332,7 +332,7 @@ class WC_Gateway_Ecpay extends WC_Payment_Gateway
                                     $this->confirm_order($order, $payment_result_comments, $ecpay_feedback);
 
                                     // 增加ECPAY付款狀態
-                                    add_post_meta( $order->id, 'ecpay_payment_tag', 1, true);  
+                                    add_post_meta( $order->id, 'ecpay_payment_tag', 1, true);
 
                                 }
                                 else
@@ -343,7 +343,7 @@ class WC_Gateway_Ecpay extends WC_Payment_Gateway
                                     if($nEcpay_Payment_Tag == 0)
                                     {
                                         $order->add_order_note($payment_result_comments, 1);
-                                        add_post_meta( $order->id, 'ecpay_payment_tag', 1, true);  
+                                        add_post_meta( $order->id, 'ecpay_payment_tag', 1, true);
                                     }
                                 }
                             }
@@ -357,7 +357,7 @@ class WC_Gateway_Ecpay extends WC_Payment_Gateway
                                     $this->confirm_order($order, $payment_result_comments, $ecpay_feedback);
 
                                     // 增加ECPAY付款狀態
-                                    add_post_meta( $order->id, 'ecpay_payment_tag', 1, true);  
+                                    add_post_meta( $order->id, 'ecpay_payment_tag', 1, true);
                                 }
                                 else
                                 {
@@ -367,7 +367,7 @@ class WC_Gateway_Ecpay extends WC_Payment_Gateway
                                     if($nEcpay_Payment_Tag == 0)
                                     {
                                         $order->add_order_note($payment_result_comments, 1);
-                                        add_post_meta( $order->id, 'ecpay_payment_tag', 1, true);  
+                                        add_post_meta( $order->id, 'ecpay_payment_tag', 1, true);
                                     }
                                 }
                             }
@@ -395,7 +395,7 @@ class WC_Gateway_Ecpay extends WC_Payment_Gateway
                                         $this->confirm_order($order, $payment_result_comments, $ecpay_feedback);
 
                                         // 增加ECPAY付款狀態
-                                        add_post_meta( $order->id, 'ecpay_payment_tag', 1, true);  
+                                        add_post_meta( $order->id, 'ecpay_payment_tag', 1, true);
 
                                     } else {
                                         # The order already paid or not in the standard procedure, do nothing
@@ -404,7 +404,7 @@ class WC_Gateway_Ecpay extends WC_Payment_Gateway
                                         if($nEcpay_Payment_Tag == 0)
                                         {
                                             $order->add_order_note($payment_result_comments, 1);
-                                            add_post_meta( $order->id, 'ecpay_payment_tag', 1, true);  
+                                            add_post_meta( $order->id, 'ecpay_payment_tag', 1, true);
                                         }
                                     }
                                 }
@@ -435,7 +435,7 @@ class WC_Gateway_Ecpay extends WC_Payment_Gateway
                                         $this->confirm_order($order, $payment_result_comments, $ecpay_feedback);
 
                                         // 增加ECPAY付款狀態
-                                        add_post_meta( $order->id, 'ecpay_payment_tag', 1, true); 
+                                        add_post_meta( $order->id, 'ecpay_payment_tag', 1, true);
                                     }
                                     else
                                     {
@@ -445,7 +445,7 @@ class WC_Gateway_Ecpay extends WC_Payment_Gateway
                                         if($nEcpay_Payment_Tag == 0)
                                         {
                                             $order->add_order_note($payment_result_comments, 1);
-                                            add_post_meta( $order->id, 'ecpay_payment_tag', 1, true);  
+                                            add_post_meta( $order->id, 'ecpay_payment_tag', 1, true);
                                         }
                                     }
                                 }
@@ -463,7 +463,7 @@ class WC_Gateway_Ecpay extends WC_Payment_Gateway
                 $comments .= sprintf(__('Failed To Pay<br />Error : %s<br />', 'ecpay'), $error);
                 $order->add_order_note($comments);
             }
-            
+
             # Set the failure result
             $result_msg = '0|' . $error;
         }
@@ -494,7 +494,7 @@ class WC_Gateway_Ecpay extends WC_Payment_Gateway
             'BARCODE'   => __('BARCODE', 'ecpay'),
             'ApplePay'  => __('ApplePay', 'ecpay')
         );
-        
+
         return $payment_desc[$payment_name];
     }
 
@@ -543,7 +543,7 @@ class WC_Gateway_Ecpay extends WC_Payment_Gateway
     private function get_payment_method($payment_type)
     {
         $info_pieces = explode('_', $payment_type);
-        
+
         return $info_pieces[0];
     }
 
@@ -555,20 +555,20 @@ class WC_Gateway_Ecpay extends WC_Payment_Gateway
     function get_order_comments($ecpay_feedback)
     {
         $comments = array(
-            'ATM' => 
+            'ATM' =>
                 sprintf(
-                      __('Bank Code : %s<br />Virtual Account : %s<br />Payment Deadline : %s<br />', 'ecpay'),  
+                      __('Bank Code : %s<br />Virtual Account : %s<br />Payment Deadline : %s<br />', 'ecpay'),
                     $ecpay_feedback['BankCode'],
                     $ecpay_feedback['vAccount'],
                     $ecpay_feedback['ExpireDate']
                 ),
-            'CVS' => 
+            'CVS' =>
                 sprintf(
                     __('Trade Code : %s<br />Payment Deadline : %s<br />', 'ecpay'),
                     $ecpay_feedback['PaymentNo'],
                     $ecpay_feedback['ExpireDate']
                 ),
-            'BARCODE' => 
+            'BARCODE' =>
                 sprintf(
                     __('Payment Deadline : %s<br />BARCODE 1 : %s<br />BARCODE 2 : %s<br />BARCODE 3 : %s<br />', 'ecpay'),
                     $ecpay_feedback['ExpireDate'],
@@ -578,7 +578,7 @@ class WC_Gateway_Ecpay extends WC_Payment_Gateway
                 )
         );
         $payment_method = $this->get_payment_method($ecpay_feedback['PaymentType']);
-        
+
         return $comments[$payment_method];
     }
 
@@ -592,7 +592,7 @@ class WC_Gateway_Ecpay extends WC_Payment_Gateway
 
         $order->payment_complete();
 
-        // 加入信用卡後四碼，提供電子發票開立使用 v1.1.0911 
+        // 加入信用卡後四碼，提供電子發票開立使用 v1.1.0911
         if(isset($ecpay_feedback['card4no']) && !empty($ecpay_feedback['card4no']))
         {
             add_post_meta( $order->get_id(), 'card4no', $ecpay_feedback['card4no'], true);
@@ -617,22 +617,22 @@ class WC_Gateway_Ecpay extends WC_Payment_Gateway
         }
 
         if ($invoice_active_ecpay == 0 && $invoice_active_opay == 1) { // opay
-            
+
             $aConfig_Invoice = get_option('wc_opayinvoice_active_model');
 
-            // 記錄目前成功付款到第幾次 
+            // 記錄目前成功付款到第幾次
             $nTotalSuccessTimes = ( isset($ecpay_feedback['TotalSuccessTimes']) && ( empty($ecpay_feedback['TotalSuccessTimes']) || $ecpay_feedback['TotalSuccessTimes'] == 1 ))  ? '' :  $ecpay_feedback['TotalSuccessTimes'] ;
             update_post_meta($order->get_id(), '_total_success_times', $nTotalSuccessTimes );
 
             if (isset($aConfig_Invoice) && $aConfig_Invoice['wc_opay_invoice_enabled'] == 'enable' && $aConfig_Invoice['wc_opay_invoice_auto'] == 'auto' ) {
                 do_action('opay_auto_invoice', $order->get_id(), $ecpay_feedback['SimulatePaid']);
             }
-            
+
         } elseif ($invoice_active_ecpay == 1 && $invoice_active_opay == 0) { // ecpay
-        
+
             $aConfig_Invoice = get_option('wc_ecpayinvoice_active_model');
 
-            // 記錄目前成功付款到第幾次 
+            // 記錄目前成功付款到第幾次
             $nTotalSuccessTimes = ( isset($ecpay_feedback['TotalSuccessTimes']) && ( empty($ecpay_feedback['TotalSuccessTimes']) || $ecpay_feedback['TotalSuccessTimes'] == 1 ))  ? '' :  $ecpay_feedback['TotalSuccessTimes'] ;
             update_post_meta($order->get_id(), '_total_success_times', $nTotalSuccessTimes );
 
@@ -661,7 +661,7 @@ class WC_Gateway_Ecpay extends WC_Payment_Gateway
      */
     private function payment_details( $order_id = '' ) {
 
-        $account_html = ''; 
+        $account_html = '';
         $has_details = false ;
         $a_has_details = array();
 
@@ -781,10 +781,10 @@ class WC_Gateway_Ecpay_DCA extends WC_Payment_Gateway
         # Register a action to save administrator settings
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'save_dca_details' ) );
-        
+
         # Register a action to redirect to ECPay payment center
         add_action('woocommerce_receipt_' . $this->id, array($this, 'receipt_page'));
-        
+
         # Register a action to process the callback
         add_action('woocommerce_api_wc_gateway_' . $this->id, array($this, 'receive_response'));
 
@@ -805,7 +805,7 @@ class WC_Gateway_Ecpay_DCA extends WC_Payment_Gateway
        }
        return $gateway_list;
     }
-    
+
     /**
      * Initialise Gateway Settings Form Fields
      */
@@ -1136,7 +1136,7 @@ class WC_Gateway_Ecpay_DCA extends WC_Payment_Gateway
     {
         wc_add_notice($error_message, 'error');
     }
-    
+
     /**
      * Process the payment
      */
@@ -1145,10 +1145,10 @@ class WC_Gateway_Ecpay_DCA extends WC_Payment_Gateway
         # Update order status
         $order = new WC_Order($order_id);
         $order->update_status('pending', $this->tran('Awaiting ECPay payment'));
-        
+
         # Set the ECPay payment type to the order note
-        $order->add_order_note('Credit_' . $this->ecpay_choose_payment, true);
-        
+        $order->add_order_note(__('Credit_' . $this->ecpay_choose_payment, 'ecpay'), true);
+
         return array(
             'result' => 'success',
             'redirect' => $order->get_checkout_payment_url(true)
@@ -1187,7 +1187,7 @@ class WC_Gateway_Ecpay_DCA extends WC_Payment_Gateway
 
             // 接收額外回傳參數 提供電子發票使用 v1.1.0911
             $aio->Send['NeedExtraPaidInfo'] = 'Y';
-            
+
             # Set the product info
             $aio->Send['TotalAmount'] = $order->get_total();
             array_push(
@@ -1200,7 +1200,7 @@ class WC_Gateway_Ecpay_DCA extends WC_Payment_Gateway
                     'URL'      => '',
                 )
             );
-            
+
             $aio->Send['TradeDesc'] = 'ecpay_module_woocommerce_v1.1.1207';
             $notes = $order->get_customer_order_notes();
             $PeriodType = '';
@@ -1222,11 +1222,11 @@ class WC_Gateway_Ecpay_DCA extends WC_Payment_Gateway
             $this->ECPay_add_error($e->getMessage());
         }
     }
-    
+
     /**
      * Process the callback
      */
-    
+
     /**
      * Process the callback
      */
@@ -1263,11 +1263,11 @@ class WC_Gateway_Ecpay_DCA extends WC_Payment_Gateway
                 } else {
                     # Set the common comments
                     $comments = sprintf(
-                        __('Payment Method : %s<br />Trade Time : %s<br />', 'ecpay'), 
+                        __('Payment Method : %s<br />Trade Time : %s<br />', 'ecpay'),
                         $ecpay_feedback['PaymentType'],
                         $ecpay_feedback['TradeDate']
                     );
-                    
+
                     # Set the getting code comments
                     $return_code = $ecpay_feedback['RtnCode'];
                     $return_message = $ecpay_feedback['RtnMsg'];
@@ -1276,17 +1276,17 @@ class WC_Gateway_Ecpay_DCA extends WC_Payment_Gateway
                         $return_code,
                         $return_message
                     );
-                    
+
                     # Set the payment result comments
                     $payment_result_comments = sprintf(
-                        __( $this->method_title . ' Payment Result : (%s)%s', 'ecpay'),
+                        __( 'ECPay Paid Automatically Payment Result : (%s)%s', 'ecpay'),
                         $return_code,
                         $return_message
                     );
-                    
+
                     # Set the fail message
                     $fail_message = sprintf('Order %s Exception.(%s: %s)', $cart_order_id, $return_code, $return_message);
-                    
+
                     # Set the order comments
                     if ($return_code != 1 and $return_code != 800) {
                         throw new Exception($fail_msg);
@@ -1305,7 +1305,7 @@ class WC_Gateway_Ecpay_DCA extends WC_Payment_Gateway
                 $comments .= sprintf(__('Failed To Pay<br />Error : %s<br />', 'ecpay'), $error);
                 $order->add_order_note($comments);
             }
-            
+
             # Set the failure result
             $result_msg = '0|' . $error;
         }
@@ -1340,7 +1340,7 @@ class WC_Gateway_Ecpay_DCA extends WC_Payment_Gateway
 
         $order->payment_complete();
 
-        // 加入信用卡後四碼，提供電子發票開立使用 v1.1.0911 
+        // 加入信用卡後四碼，提供電子發票開立使用 v1.1.0911
         if(isset($ecpay_feedback['card4no']) && !empty($ecpay_feedback['card4no']))
         {
             add_post_meta( $order->get_id(), 'card4no', $ecpay_feedback['card4no'], true);
@@ -1365,10 +1365,10 @@ class WC_Gateway_Ecpay_DCA extends WC_Payment_Gateway
         }
 
         if ($invoice_active_ecpay == 0 && $invoice_active_opay == 1) { // opay
-                
+
             $aConfig_Invoice = get_option('wc_opayinvoice_active_model');
 
-            // 記錄目前成功付款到第幾次 
+            // 記錄目前成功付款到第幾次
             $nTotalSuccessTimes = ( isset($ecpay_feedback['TotalSuccessTimes']) && ( empty($ecpay_feedback['TotalSuccessTimes']) || $ecpay_feedback['TotalSuccessTimes'] == 1 ))  ? '' :  $ecpay_feedback['TotalSuccessTimes'] ;
             update_post_meta($order->get_id(), '_total_success_times', $nTotalSuccessTimes );
 
@@ -1377,17 +1377,17 @@ class WC_Gateway_Ecpay_DCA extends WC_Payment_Gateway
             }
 
         } elseif ($invoice_active_ecpay == 1 && $invoice_active_opay == 0) { // ecpay
-        
+
             $aConfig_Invoice = get_option('wc_ecpayinvoice_active_model');
 
-            // 記錄目前成功付款到第幾次 
+            // 記錄目前成功付款到第幾次
             $nTotalSuccessTimes = ( isset($ecpay_feedback['TotalSuccessTimes']) && ( empty($ecpay_feedback['TotalSuccessTimes']) || $ecpay_feedback['TotalSuccessTimes'] == 1 ))  ? '' :  $ecpay_feedback['TotalSuccessTimes'] ;
             update_post_meta($order->get_id(), '_total_success_times', $nTotalSuccessTimes );
 
             if (isset($aConfig_Invoice) && $aConfig_Invoice['wc_ecpay_invoice_enabled'] == 'enable' && $aConfig_Invoice['wc_ecpay_invoice_auto'] == 'auto' ) {
                 do_action('ecpay_auto_invoice', $order->get_id(), $ecpay_feedback['SimulatePaid']);
             }
-            
+
         }
     }
 
