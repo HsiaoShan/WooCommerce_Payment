@@ -127,6 +127,7 @@ class WC_Gateway_Ecpay extends WC_Payment_Gateway
 
         # Set the ECPay payment type to the order note
         $order->add_order_note($this->get_payment_desc($this->ecpay_choose_payment), true);
+        add_post_meta( $order->id, 'choose_ecpay_payment', $this->ecpay_choose_payment, true);
 
         return array(
             'result' => 'success',
@@ -145,9 +146,8 @@ class WC_Gateway_Ecpay extends WC_Payment_Gateway
 
         //找出訂單資訊
         $order = new WC_Order($order_id);
-        $notes = $order->get_customer_order_notes();
-
-        if ($notes[0]->comment_content == 'ApplePay') {
+        $choose_payment = get_post_meta($order->get_id(), 'choose_ecpay_payment', true);
+        if ($choose_payment == 'ApplePay') {
             $gateway_settings = get_option( 'woocommerce_ecpay_settings', '' );
 
             // 載入CSS
@@ -214,11 +214,9 @@ class WC_Gateway_Ecpay extends WC_Payment_Gateway
                 $aio->Send['TradeDesc'] = 'ecpay_module_woocommerce';
 
                 # Get the chosen payment and installment
-                $notes = $order->get_customer_order_notes();
-                $choose_payment = '';
                 $choose_installment = '';
-                if (isset($notes[0])) {
-                    $chooseParam = explode('_', $notes[0]->comment_content);
+                if ($choose_payment != '') {
+                    $chooseParam = explode('_', $choose_payment);
                     $choose_payment =isset($chooseParam[0]) ? $chooseParam[0] : '';
                     $choose_installment = isset($chooseParam[1]) ? $chooseParam[1] : '';
                 }
